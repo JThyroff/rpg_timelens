@@ -33,7 +33,10 @@ class Warp(nn.Module):
         self.flow_network = unet.UNet(5, 2, False)
 
     def from_legacy_checkpoint(self, checkpoint_filename):
-        checkpoint = th.load(checkpoint_filename)
+        print("CUDA available:", th.cuda.is_available())
+        print("CUDA version:", th.version.cuda)
+        print("GPU:", th.cuda.get_device_name(0))
+        checkpoint = th.load(checkpoint_filename, weights_only=False)
         self.load_state_dict(checkpoint["networks"])
 
     def run_warp(self, example):

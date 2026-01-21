@@ -4,6 +4,7 @@ import click
 import numpy as np
 import sys
 from os.path import dirname, join
+import time
 import torch
 
 sys.path.append(dirname(dirname(__file__)))
@@ -48,7 +49,7 @@ def _interpolate(
         counter += 1
 
         for split_index, (left_events, right_events) in enumerate(iterator_over_splits):
-            print("Events left: ", len(left_events._features), "Events right: ", len(right_events._features))
+            #print("Events left: ", len(left_events._features), "Events right: ", len(right_events._features))
             example = _pack_to_example(
                 left_frame,
                 right_frame,
@@ -142,8 +143,8 @@ def run_recursively(
 
         input_image_sequence = storage._images.skip_and_repeat(number_of_frames_to_skip, number_of_frames_to_insert)
         output_image_sequence.to_folder(leaf_output_folder, file_template="frame_{:06d}.png")
-        output_image_sequence.to_video(os.path.join(leaf_output_folder, "interpolated.mp4"))
-        input_image_sequence.to_video(os.path.join(leaf_output_folder, "input.mp4"))
+        #output_image_sequence.to_video(os.path.join(leaf_output_folder, "interpolated.mp4"))
+        #input_image_sequence.to_video(os.path.join(leaf_output_folder, "input.mp4"))
 
 
 @click.command()
@@ -161,6 +162,7 @@ def main(
         number_of_frames_to_skip,
         number_of_frames_to_insert,
 ):
+    start_time = time.time()
     run_recursively(
         checkpoint_file,
         root_event_folder,
@@ -169,6 +171,23 @@ def main(
         number_of_frames_to_skip,
         number_of_frames_to_insert,
     )
+    end_time = time.time()
+    print("Total processing time: {:.2f} seconds".format(end_time - start_time))
+    print("Input folder: ", root_image_folder)
+    print("Event folder: ", root_event_folder)
+    print("Output folder: ", root_output_folder)
+    print("Number of frames to skip: ", number_of_frames_to_skip)
+    print("Number of frames to insert: ", number_of_frames_to_insert)
+
+    #save this info to log file in the output folder
+    log_file = os.path.join(root_output_folder, "run_log.txt")
+    with open(log_file, "w") as f:
+        f.write("Total processing time: {:.2f} seconds\n".format(end_time - start_time))
+        f.write("Input folder: {}\n".format(root_image_folder))
+        f.write("Event folder: {}\n".format(root_event_folder))
+        f.write("Output folder: {}\n".format(root_output_folder))
+        f.write("Number of frames to skip: {}\n".format(number_of_frames_to_skip))
+        f.write("Number of frames to insert: {}\n".format(number_of_frames_to_insert))
 
 
 if __name__ == "__main__":
