@@ -26,9 +26,12 @@ def _interpolate(
         interframe_events_iterator,
         boundary_frames_iterator,
         number_of_frames_to_interpolate,
-        output_folder
+        output_folder,
+        return_frames=False,
 ):
-    output_frames, output_timestamps = [], []
+    output_timestamps = []
+    if return_frames:
+        output_frames = []
     pytorch_tools.set_fastest_cuda_mode()
     combined_iterator = zip(boundary_frames_iterator, interframe_events_iterator)
     counter = 0
@@ -44,8 +47,11 @@ def _interpolate(
         iterator_over_splits = event_sequence.make_iterator_over_splits(
             number_of_frames_to_interpolate
         )
-        output_frames.append(left_frame)
-        output_frames[-1].save(join(output_folder, "{:06d}.png".format(counter)))
+        if return_frames:
+            output_frames.append(left_frame)
+            output_frames[-1].save(join(output_folder, "{:06d}.png".format(counter)))
+        else:
+            left_frame.save(join(output_folder, "{:06d}.png".format(counter)))
         counter += 1
 
         for split_index, (left_events, right_events) in enumerate(iterator_over_splits):
@@ -67,15 +73,25 @@ def _interpolate(
             interpolated = th.clamp(
                 frame.squeeze().cpu().detach(), 0, 1,
             )
-            output_frames.append(transforms.ToPILImage()(interpolated))
-            output_frames[-1].save(join(output_folder, "{:06d}.png".format(counter)))
+            if return_frames:
+                output_frames.append(transforms.ToPILImage()(interpolated))
+                output_frames[-1].save(join(output_folder, "{:06d}.png".format(counter)))
+            else:
+                transforms.ToPILImage()(interpolated).save(
+                    join(output_folder, "{:06d}.png".format(counter))
+                )
             counter += 1
 
-    output_frames.append(right_frame)
-    output_frames[-1].save(join(output_folder, "{:06d}.png".format(counter)))
+    if return_frames:
+        output_frames.append(right_frame)
+        output_frames[-1].save(join(output_folder, "{:06d}.png".format(counter)))
+    else:
+        right_frame.save(join(output_folder, "{:06d}.png".format(counter)))
     counter += 1
 
-    return output_frames, output_timestamps
+    if return_frames:
+        return output_frames, output_timestamps
+    return output_timestamps
 
 
 def _load_network(checkpoint_file):
@@ -129,7 +145,7 @@ def run_recursively(
         print("Processing {}".format(leaf_output_folder))
         os.makedirs(leaf_output_folder, exist_ok=True)
 
-        output_frames, output_timestamps = _interpolate(
+        _, output_timestamps = _interpolate(
             network,
             transform_list,
             interframe_events_iterator,
@@ -137,12 +153,16 @@ def run_recursively(
             number_of_frames_to_insert,
             leaf_output_folder
         )
-        output_image_sequence = image_sequence.ImageSequence(
-            output_frames, output_timestamps
-        )
+
+        folder = os.path.abspath(leaf_output_folder)
+        os_tools.list_to_file(os.path.join(folder, "timestamp.txt"), [str(timestamp) for timestamp in output_timestamps])
+        #output_image_sequence = image_sequence.ImageSequence(
+        #    output_frames, output_timestamps
+        #)
 
         #input_image_sequence = storage._images.skip_and_repeat(number_of_frames_to_skip, number_of_frames_to_insert)
-        output_image_sequence.to_folder(leaf_output_folder, file_template="frame_{:06d}.png")
+        #output_image_sequence.to_folder(leaf_output_folder, file_template="frame_{:06d}.png")
+
         #output_image_sequence.to_video(os.path.join(leaf_output_folder, "interpolated.mp4"))
         #input_image_sequence.to_video(os.path.join(leaf_output_folder, "input.mp4"))
 
