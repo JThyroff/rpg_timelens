@@ -91,7 +91,7 @@ def _interpolate(
 
     if return_frames:
         return output_frames, output_timestamps
-    return output_timestamps
+    return None, output_timestamps
 
 
 def _load_network(checkpoint_file):
